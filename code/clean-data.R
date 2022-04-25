@@ -121,7 +121,12 @@ tidy_data <- combined_data[!is.na(combined_data$Complexity),]
 
 # remove contaminated plates
 tidy_data <- tidy_data[!(tidy_data$Strain == 302 &
-                           tidy_data$PlateTrue %in% c(7, 9, 12, 14, 17, 19)),]
+                           tidy_data$PlateTrue %in% c(4, 9, 18)),]
+
+# something weird happened in a row of one of the #302 plates
+tidy_data <- tidy_data[!(tidy_data$Strain == 302 &
+                           tidy_data$TruePlateWell %in% c("6D1", "6D2", "6D3", "6D4", "6D5", "6D6", 
+                                                          "6D7", "6D8", "6D9", "6D10", "6D11", "6D12")),]
 
 # remove dodgy well
 tidy_data <- tidy_data[!(tidy_data$Strain == 331 &
