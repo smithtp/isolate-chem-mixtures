@@ -152,5 +152,27 @@ tidy_data <- tidy_data[!(tidy_data$Strain == 527 &
 tidy_data <- tidy_data[!(tidy_data$Strain == "Ecoli" &
                            tidy_data$TruePlateWell %in% c("13G8", "8F8")),]
 
+# make the strain names nicer
+tidy_data$Strain_nice <- NA
+
+isolate.names <- c(74, 100, 302, 306, 331, 371, 419, 448, 487, 527, "Ecoli", "vfischeri", "mixture")
+
+tidy_data[tidy_data$Strain == 74,]$Strain_nice <- "IL 74"
+tidy_data[tidy_data$Strain == 100,]$Strain_nice <- "IL 100"
+tidy_data[tidy_data$Strain == 302,]$Strain_nice <- "IL 302"
+tidy_data[tidy_data$Strain == 306,]$Strain_nice <- "IL 306"
+tidy_data[tidy_data$Strain == 331,]$Strain_nice <- "IL 331"
+tidy_data[tidy_data$Strain == 371,]$Strain_nice <- "IL 371"
+tidy_data[tidy_data$Strain == 419,]$Strain_nice <- "IL 419"
+tidy_data[tidy_data$Strain == 448,]$Strain_nice <- "IL 448"
+tidy_data[tidy_data$Strain == 487,]$Strain_nice <- "IL 487"
+tidy_data[tidy_data$Strain == 527,]$Strain_nice <- "IL 527"
+tidy_data[tidy_data$Strain == "Ecoli",]$Strain_nice <- "E. coli"
+tidy_data[tidy_data$Strain == "vfischeri",]$Strain_nice <- "V. fischeri"
+tidy_data[tidy_data$Strain == "mixture",]$Strain_nice <- "IL Mixture"
+
+tidy_data$Strain_nice <- factor(tidy_data$Strain_nice, levels = c("IL 74", "IL 100", "IL 302", "IL 306", "IL 331", "IL 371",
+                                                                     "IL 419", "IL 448", "IL 487", "IL 527", "E. coli",
+                                                                     "V. fischeri", "IL Mixture"))
 
 write.csv(tidy_data, "data/tidy-data.csv", row.names = FALSE)

@@ -91,6 +91,7 @@ for(i in seq_along(strains)){
                                Tebuconazole = fit_data$Tebuconazole[[1]],
                                Complexity = fit_data$Complexity[[1]],
                                Strain = fit_data$Strain[[1]],
+                               Strain_nice = fit_data$Strain_nice[[1]],
                                AUC = AUC)
       
         # tidy the results into one place
@@ -106,7 +107,7 @@ write.csv(tidy_growth_data, "results/spline_fits.csv", row.names = FALSE)
 # plot stuff to see whats happened
 ggplot(tidy_growth_data, aes(x = Complexity, y = AUC)) + 
   geom_point() +
-  facet_wrap(~Strain)
+  facet_wrap(~Strain_nice)
 
 ########################################
 # create summaries of the growth curves
@@ -131,7 +132,8 @@ control_means <- tidy_growth_data %>%
             Metaldehyde = mean(Metaldehyde),
             Oxytetracycline = mean(Oxytetracycline),
             Tebuconazole = mean(Tebuconazole),
-            Complexity = mean(Complexity))
+            Complexity = mean(Complexity),
+            Strain_nice = Strain_nice)
 
 # Average the remaining treatment wells by location
 growth_means <- tidy_growth_data %>%
@@ -148,7 +150,8 @@ growth_means <- tidy_growth_data %>%
             Metaldehyde = mean(Metaldehyde),
             Oxytetracycline = mean(Oxytetracycline),
             Tebuconazole = mean(Tebuconazole),
-            Complexity = mean(Complexity))
+            Complexity = mean(Complexity),
+            Strain_nice = Strain_nice)
 
 # And merge the summaries back together
 summarised_growth_data <- bind_rows(growth_means, control_means)
