@@ -133,7 +133,7 @@ control_means <- tidy_growth_data %>%
             Oxytetracycline = mean(Oxytetracycline),
             Tebuconazole = mean(Tebuconazole),
             Complexity = mean(Complexity),
-            Strain_nice = Strain_nice)
+            Strain_nice = unique(Strain_nice))
 
 # Average the remaining treatment wells by location
 growth_means <- tidy_growth_data %>%
@@ -151,7 +151,7 @@ growth_means <- tidy_growth_data %>%
             Oxytetracycline = mean(Oxytetracycline),
             Tebuconazole = mean(Tebuconazole),
             Complexity = mean(Complexity),
-            Strain_nice = Strain_nice)
+            Strain_nice = unique(Strain_nice))
 
 # And merge the summaries back together
 summarised_growth_data <- bind_rows(growth_means, control_means)
