@@ -4,6 +4,9 @@
 #
 #
 
+library(dplyr)
+library(tidyr)
+
 # functions to apply to plates
 remove.temp <- function(x){
   # remove the temperature column
@@ -45,9 +48,9 @@ clean.raw.data <- function(isolate.name, plate.name){
     if(isolate.name == 100 & plate.name %in% c(12:14)){
       plate_data <- re.number.cols(plate_data)
     }
-    if(isolate.name == 527 & plate.name %in% c(4,9,14,19)){
-      plate_data <- re.number.cols(plate_data)
-    }
+    # if(isolate.name == 527 & plate.name %in% c(4,9,14,19)){
+    #   plate_data <- re.number.cols(plate_data)
+    # } # I think this was for Jenny's data, but not Tom M-Ls!
     
     # number the plates for the chemical matrix
     if(plate.name %in% seq(1, 16, by = 5)){
@@ -114,6 +117,18 @@ combined_data$TruePlateWell <- paste(combined_data$PlateTrue, combined_data$Well
 # remove the wells without bacteria
 tidy_data <- combined_data[!is.na(combined_data$Complexity),]
 
+# and do a quick fix for Strain 419 where the Tebuconazole and Oxytet got swapped
+# around when the plates were made
+data_419 <- tidy_data %>% 
+  filter(Strain == 419) %>%
+  rename(Tebuconazole = Oxytetracycline, Oxytetracycline = Tebuconazole)
+
+data_remaining <- tidy_data %>% 
+  filter(Strain != 419)
+
+tidy_data <- bind_rows(data_remaining, data_419)
+
+rm(data_419, data_remaining)
 
 ######################################
 ###   Data cleaning
@@ -143,9 +158,25 @@ tidy_data <- tidy_data[!(tidy_data$Strain == 448 &
                            tidy_data$TruePlateWell %in% c("1G2", "7C4", "7C5", "7E10", "8B2", "8B7",
                                                           "9D7", "12E10", "13B7")),]
 
-# Filter a some dodgy wells from isolate # 527. 6B5 got no bacteria
+# # Filter a some dodgy wells from isolate # 527. 6B5 got no bacteria
+# tidy_data <- tidy_data[!(tidy_data$Strain == 527 &
+#                            tidy_data$TruePlateWell == "6B5"),]
+
+# Many problem wells from Tom M-Ls first #527 run -
+# looks like multichannel pipetting error mostly
+# 1B6-G6 ; 16C2-G2
+# 2B10; 7B2-G2; 17B3-F3; 12C11-G11; 17C9-E9
+# 8G7, 9B4
+# 20B11-G11; 10B3-G3; 20B3-G3
 tidy_data <- tidy_data[!(tidy_data$Strain == 527 &
-                           tidy_data$TruePlateWell == "6B5"),]
+                           tidy_data$TruePlateWell %in% c("1B6", "1C6", "1D6", "1E6", "1F6", "1G6",
+                                                          "16C2", "16D2", "16E2", "16F2", "16G2",
+                                                          "2B10", "7B2", "7C2", "7D2", "7E2", "7F2", "7G2",
+                                                          "17B3", "17C3", "17D3", "17E3", "17F3", "12C11", "12D11",
+                                                          "12E11", "12F11", "12G11", "17C9", "17D9", "17E9",
+                                                          "8G7", "9B4", "20B11", "20C11", "20D11", "20E11",
+                                                          "20F11", "20G11", "10B3", "10C3", "10D3", "10E3", "10F3",
+                                                          "10G3", "20B3", "20C3", "20D3", "20E3", "20F3", "20G3")),]
 
 # Filter out a couple of wells from the Ecoli run (one OD starts too high, one looks like it failed to get any bacteria in)
 # 13G8 got no bacteria # 8F8 got a double-helping, or had a bubble

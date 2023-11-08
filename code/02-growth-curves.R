@@ -5,6 +5,7 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 
+rm(list = ls())
 
 # read the data
 

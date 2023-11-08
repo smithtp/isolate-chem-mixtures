@@ -180,6 +180,17 @@ f_min_bootstrap <- function(r_vec, c_vec, i_mat, n_samples, zero = FALSE){
   }
 }
 
+dominance_bootstrap <- function(r_vec, c_vec, n_samples, zero = FALSE){
+  if(zero){return(1.0)}
+  #generate samples
+  r_sample <- sample(r_vec, n_samples, replace = T)
+  c_sample <- sample(c_vec, n_samples, replace = T)
+  
+  int_sample <- r_sample / c_sample
+  # return the sampled values
+  return(int_sample)
+}
+
 
 #As above iterate through interaction combinations to determine the effect estimates. returns a matrix with samples of interaction estimates.
 calculate_interactions_bootstrap <- function(n_tot, v_int = 1:n_tot, r_list, func, n_samples){
@@ -287,6 +298,25 @@ calculate_net_effect_bootstrap_plus <- function(n_tot, v_int = 1:n_tot, r_list, 
   return(effects)
 }
 
+# Extra function for calculating dominance with a bootstrap
+calculate_dominance_bootstrap <- function(n_tot, v_int = 1:n_tot, r_list, func, n_samples){
+  #get all combinations to estimate effects
+  perms <- unique_perms(n_tot,v_int)
+  #get unique ids for the effects
+  ids <- get_ids(perms)
+  #named matrix to store estimated effects in
+  effects <- matrix(0,length(perms),n_samples)
+  rownames(effects) <- ids
+  #set I_0 - the null interaction for the control case (zero = TRUE)
+  effects["control",] <- func(1,1,n_samples,zero = TRUE)
+  
+  # loop from low to high complexity
+  for(indx in 2:length(ids)){
+    effects[ids[indx], ] = func(r_list[[ids[indx]]], r_list[["control"]], n_samples = n_samples , zero = FALSE)
+  }
+  return(effects)
+}
+
 
 #######################
 
@@ -297,19 +327,20 @@ grw_df_full <- read_csv("results/spline_fits.csv", show_col_types = FALSE) %>%
                 Metaldehyde, Oxytetracycline, Tebuconazole)) %>%
   mutate(id = unlist(map(data, function(x){ a = paste(which(x == 1),collapse = "")
   return(ifelse(a == "", "control", a))
-  }))) 
-
-
+  })))
 
 options(scipen = 1) 
 
 # create somewhere to put the results
-net_interactions <- emergent_interactions <- data.frame()
+dominance_interactions <- net_interactions <- emergent_interactions <- data.frame()
 
 #apply bootstraped estimation
 n_tot <- 8
 v_int <- 1:n_tot
 n_samples <- 10000
+
+# list of stressors
+stressor_list <- c("A", "C", "D", "G", "I", "M", "O", "T")
 
 # apply the bootstrapping interaction functions across all strains
 unique_strains <- unique(grw_df_full$Strain)
@@ -330,12 +361,19 @@ for(strain in seq_along(unique_strains)){
   # test the net interactions
   net_mat <- calculate_net_effect_bootstrap(n_tot, v_int, r_list, f_mult_bootstrap, n_samples)
   
-  # put all bootstraps into a dataframe
+  # test for effects of dominance
+  dom_mat <- calculate_dominance_bootstrap(n_tot, v_int, r_list, dominance_bootstrap, n_samples)
+  
+    # put all bootstraps into a dataframe
   int_df_emergent <- data_frame(id = rownames(emergent_mat), as.data.frame(emergent_mat)) %>%
     mutate(complexity = ifelse(id == "control",0,nchar(id))) %>%
     pivot_longer(-c(id,complexity), names_to = "rep",values_to = "Interaction") 
   
   int_df_net <- data_frame(id = rownames(net_mat), as.data.frame(net_mat)) %>%
+    mutate(complexity = ifelse(id == "control",0,nchar(id))) %>%
+    pivot_longer(-c(id,complexity), names_to = "rep",values_to = "Interaction") 
+  
+  int_df_dom <- data_frame(id = rownames(dom_mat), as.data.frame(dom_mat)) %>%
     mutate(complexity = ifelse(id == "control",0,nchar(id))) %>%
     pivot_longer(-c(id,complexity), names_to = "rep",values_to = "Interaction") 
   
@@ -494,12 +532,117 @@ for(strain in seq_along(unique_strains)){
   b <- b %>%
     unnest(data)
   
+  
+  # # now the tests for dominance
+  # 
+  # z <- int_df_dom %>%
+  #   group_by(id) %>% 
+  #   summarise(mean_int = mean(Interaction), 
+  #             i_min = quantile(Interaction, probs = 0.025),
+  #             i_max = quantile(Interaction, probs = 0.975),
+  #             .groups = "drop")
+  # 
+  # z <- grw_full_subset %>%
+  #   group_by(id,Strain,Complexity, data) %>%
+  #   summarise(r_min = min(AUC), r_max = max(AUC), r_mean = mean(AUC), .groups = "drop") %>%
+  #   mutate(c_min = ifelse(Complexity == 0, r_min,0),
+  #          c_max = ifelse(Complexity == 0, r_max,0),
+  #          c_mean = ifelse(Complexity == 0, r_mean,0)) %>%
+  #   ungroup %>%
+  #   mutate(c_min = max(c_min), c_max = max(c_max), c_mean = max(c_mean)) %>%
+  #   full_join(z, by = "id") %>%
+  #   arrange(Complexity, id) %>%
+  #   # filter(id == "control") %>%
+  #   mutate(mean_response = r_mean/c_mean) %>%
+  #   select(Strain, data, r_min,r_max,r_mean,c_min,c_max,c_mean, i_min,mean_int, i_max, mean_response, Complexity, id) 
+  # 
+  # # test the significance
+  # # more complicated than before because now
+  # # we're comparing CIs between single stressors mixtures
+  # z$dom_test <- z$dom_chem <- NA
+  # 
+  # for(i in 1:nrow(z)){
+  #   model.complexity <- z$Complexity[i]
+  #   
+  #   # if is a single stressor or control, we ignore it
+  #   if(model.complexity >= 2){
+  #     # pull out the id and therefore the component ids
+  #     model.id <- z$id[i]
+  #     # get permutation leading to current combination
+  #     dom_perms <- unique_perms(8, as.numeric(unlist(str_split(as.numeric(model.id), ""))))
+  #     # get ids of only those permutations with length 1 (i.e. drop all the higher order interactions)
+  #     dom_perms <- dom_perms[lengths(dom_perms) == 1]
+  #     dom_ids <- unlist(lapply(dom_perms,function(x){paste(x,collapse = '')}))
+  #     
+  #     # find the strongest single stressor that we want to compare to
+  #     trial_data <- z[z$id %in% dom_ids,]
+  #     strongest_id <- trial_data[which.max(abs(1-trial_data$mean_int)),]$id
+  #     
+  #     # now take the bootstraps from the real data tested and compare CIs to the boostraps from the "strongest ID"
+  #     # to test for dominance
+  #     # first group the data 
+  #     dom_test_dat <- z[z$id %in% c(model.id, strongest_id),]
+  #     # then do the CI overlap test
+  #     z$dom_test[i] <- max(dom_test_dat$i_min) <= min(dom_test_dat$i_max) # if its TRUE, then the CIs overlap 
+  #     # and we have dominance (given a positive net interaction)
+  #     # also put in which was the strongest stressor
+  #     z$dom_chem[i] <- stressor_list[as.numeric(strongest_id)]
+  #     
+  #   }
+  # }
+  # # and lets un-nest the data columns too
+  # z <- z %>%
+  #   unnest(data)
+  
+  # co-opting the "dominance" function to just test whether there are differences
+  # in the growth from the control, so that we can test whether some of the "additive"
+  # responses are actually just no response
+  
+  z <- int_df_dom %>%
+    group_by(id) %>%
+    summarise(mean_int = mean(Interaction),
+              i_min = quantile(Interaction, probs = 0.025),
+              i_max = quantile(Interaction, probs = 0.975),
+              .groups = "drop")
+
+  z <- grw_full_subset %>%
+    group_by(id,Strain,Complexity, data) %>%
+    summarise(r_min = min(AUC), r_max = max(AUC), r_mean = mean(AUC), .groups = "drop") %>%
+    mutate(c_min = ifelse(Complexity == 0, r_min,0),
+           c_max = ifelse(Complexity == 0, r_max,0),
+           c_mean = ifelse(Complexity == 0, r_mean,0)) %>%
+    ungroup %>%
+    mutate(c_min = max(c_min), c_max = max(c_max), c_mean = max(c_mean)) %>%
+    full_join(z, by = "id") %>%
+    arrange(Complexity, id) %>%
+    # filter(id == "control") %>%
+    mutate(mean_response = r_mean/c_mean) %>%
+    select(Strain, data, r_min,r_max,r_mean,c_min,c_max,c_mean, i_min,mean_int, i_max, mean_response, Complexity, id)
+  
+  # test the significance
+  z <- z %>%
+    rowwise %>% # like a loop - compute a row at-a-time when a vectorised function doesn't exist (i.e. between)
+    mutate(significant = ifelse(between(1, i_min, i_max), FALSE, TRUE))
+  
+  # now define the interactions
+  # case_when is a good alternative to nested ifelse statements
+  
+  z <- z %>%
+    mutate(response = case_when(Complexity == 0 ~ "None",
+                                Complexity >= 1 ~ case_when(significant == TRUE ~ ifelse(mean_response > 1, "Positive", "Negative"),
+                                                            TRUE ~ "None")))
+  
+  # and lets un-nest the data columns too
+  z <- z %>%
+    unnest(data)
+  
   #############################
   # bind into final dataframes
   #############################
   
   emergent_interactions <- bind_rows(emergent_interactions, a)
   net_interactions <- bind_rows(net_interactions, b)
+  dominance_interactions <- bind_rows(dominance_interactions, z)
   
 }
 
@@ -507,9 +650,21 @@ for(strain in seq_along(unique_strains)){
 # write the results somewhere
 write.csv(emergent_interactions, "results/bootstrapped-emergent-interactions.csv", row.names = FALSE)
 write.csv(net_interactions, "results/bootstrapped-net-interactions.csv", row.names = FALSE)
+write.csv(dominance_interactions, "results/bootstrapped-no-response-test.csv", row.names = FALSE)
 
+#### ---- depreciated ----- #####
 
+# cunningly bind the dominance to the net interactions
+# as the dominance is only another option there really
+# net_and_dominance <- left_join(net_interactions, dominance_interactions[,c("Strain", "id", "dom_chem", "dom_test")])
+# 
+# # now do a bit of reworking to finalise what the responses are
+# net_and_dominance[net_and_dominance$Complexity > 1 & net_and_dominance$significant == TRUE & 
+#                     net_and_dominance$dom_test == TRUE,]$response <- "Dominance"
+# 
+# write.csv(net_and_dominance, "results/bootstrapped-net-interactions-with-dominance.csv", row.names = FALSE)
 
+#### --------------------- #####
 
 #
 #
