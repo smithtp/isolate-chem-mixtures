@@ -1,6 +1,6 @@
 # isolate-chem-mixtures
 
-Data and code relating to our paper *Bacterial responses to complex mixtures of chemical pollutants*. bioRxiv preprint here: https://doi.org/10.1101/2023.02.18.529059 
+Data and code relating to our paper *High-throughput characterization of bacterial responses to complex mixtures of chemical pollutants* in Nature Microbiology: https://doi.org/10.1038/s41564-024-01626-9 
 
 ## Background
 
